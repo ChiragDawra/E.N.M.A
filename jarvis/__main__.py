@@ -34,6 +34,16 @@ def cmd_enroll(args: argparse.Namespace) -> int:
 
 def cmd_setup(args: argparse.Namespace) -> int:
     from jarvis.utils.secrets import delete_secret, get_secret
+
+    if args.clear == "claude":
+        delete_secret("anthropic_api_key")
+        print("anthropic_api_key removed from Keychain.")
+        return 0
+    if args.clear == "gemini":
+        delete_secret("gemini_api_key")
+        print("gemini_api_key removed from Keychain.")
+        return 0
+
     if args.reset:
         delete_secret("anthropic_api_key")
         delete_secret("gemini_api_key")
@@ -96,6 +106,13 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     except Exception as e:
         results.append(("gemini", f"FAIL — {type(e).__name__}: {str(e)[:120]}"))
 
+    # Ollama (offline fallback)
+    try:
+        reply = _llm._call_ollama("say 'ok' only", [])
+        results.append(("ollama", f"OK — {reply[:60]!r}"))
+    except Exception as e:
+        results.append(("ollama", f"FAIL — {type(e).__name__}: {str(e)[:120]}"))
+
     ok = 0
     for name, status in results:
         mark = "✓" if status.startswith("OK") else "✗"
@@ -121,6 +138,8 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("setup", help="store API keys in Keychain")
     sp.add_argument("--reset", action="store_true",
                     help="delete existing keys first and re-prompt")
+    sp.add_argument("--clear", choices=["claude", "gemini"],
+                    help="remove a single key from Keychain and exit")
     sp.set_defaults(func=cmd_setup)
 
     t = sub.add_parser("text", help="send a single text prompt (no audio)")

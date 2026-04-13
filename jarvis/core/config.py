@@ -28,6 +28,8 @@ class Config:
     keychain_service: str = "jarvis-assistant"
     offline_mode: bool = False
     tool_timeout_s: int = 30
+    ollama_model: str = "llama3.2:3b"
+    ollama_url: str = "http://127.0.0.1:11434"
     rate_limits: dict = field(default_factory=lambda: {
         "claude_api": (20, 60),
         "gemini_api": (30, 60),

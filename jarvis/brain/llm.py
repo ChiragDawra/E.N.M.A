@@ -122,36 +122,85 @@ def _call_ollama(prompt: str, history: list[dict]) -> str:
     msgs = ([{"role": "system", "content": SYSTEM_PROMPT}]
             + history + [{"role": "user", "content": prompt}])
     r = requests.post(
-        "http://127.0.0.1:11434/api/chat",
-        json={"model": "llama3", "messages": msgs, "stream": False},
-        timeout=30,
+        f"{CONFIG.ollama_url}/api/chat",
+        json={"model": CONFIG.ollama_model, "messages": msgs,
+              "stream": False, "format": "json"},
+        timeout=60,
     )
     r.raise_for_status()
     return r.json()["message"]["content"]  # type: ignore[no-any-return]
 
 
+def _internet_ok(timeout_s: float = 1.0) -> bool:
+    """Fast TCP probe to a public DNS resolver.  True ⇒ cloud brains worth trying."""
+    import socket
+    try:
+        with socket.create_connection(("1.1.1.1", 53), timeout=timeout_s):
+            return True
+    except OSError:
+        return False
+
+
+# Brains that returned a permanent error (401/403/400 billing) are
+# disabled for the rest of the session so we don't pay their timeout cost
+# on every subsequent call.
+_DISABLED_BRAINS: set[str] = set()
+
+# Gemini-first by default; Claude moves to primary only if explicitly preferred.
+import os as _os
+_CLAUDE_PRIMARY = _os.environ.get("JARVIS_CLAUDE_PRIMARY") == "1"
+
+
 def _preferred_order() -> list[tuple[str, callable]]:
-    """Brain preference.  Claude first only if a key is present AND the
-    circuit breaker hasn't tripped on it recently; otherwise Gemini leads."""
     from jarvis.utils.secrets import get_secret
-    has_claude = bool(get_secret("anthropic_api_key", prompt=False))
-    has_gemini = bool(get_secret("gemini_api_key", prompt=False))
+    has_claude = (bool(get_secret("anthropic_api_key", prompt=False))
+                  and "claude_api" not in _DISABLED_BRAINS)
+    has_gemini = (bool(get_secret("gemini_api_key", prompt=False))
+                  and "gemini_api" not in _DISABLED_BRAINS)
     order: list[tuple[str, callable]] = []
-    if has_claude:
+    if _CLAUDE_PRIMARY and has_claude:
         order.append(("claude_api", _call_claude))
-    if has_gemini:
-        order.append(("gemini_api", _call_gemini))
+        if has_gemini:
+            order.append(("gemini_api", _call_gemini))
+    else:
+        if has_gemini:
+            order.append(("gemini_api", _call_gemini))
+        if has_claude:
+            order.append(("claude_api", _call_claude))
     return order
+
+
+def _is_permanent_error(exc: BaseException) -> bool:
+    """Auth / billing / quota errors won't fix themselves this session."""
+    name = type(exc).__name__
+    msg = str(exc).lower()
+    if name in {"AuthenticationError", "PermissionDeniedError"}:
+        return True
+    if "invalid_request_error" in msg and ("credit" in msg or "billing" in msg):
+        return True
+    if "401" in msg or "403" in msg:
+        return True
+    return False
 
 
 def decide(prompt: str, history: Optional[list[dict]] = None) -> Decision:
     history = history or []
-    if CONFIG.offline_mode or LIMITER.circuit_open():
+
+    # Short-circuit to Ollama when we know the network is down or the
+    # cloud-brain circuit breaker has tripped recently.  Avoids waiting out
+    # the Anthropic/Gemini HTTP timeout on e.g. airplane mode.
+    go_offline = (
+        CONFIG.offline_mode
+        or LIMITER.circuit_open()
+        or not _internet_ok()
+    )
+    if go_offline:
         try:
             return Decision.from_text(_call_ollama(prompt, history))
         except Exception as e:
             log_error(e, "ollama")
-            return Decision(None, {}, "I'm offline and unable to reach any brain.")
+            return Decision(None, {},
+                "I can't reach the cloud and the local model isn't responding.")
 
     last_err: str | None = None
     for bucket, fn in _preferred_order():
@@ -165,8 +214,10 @@ def decide(prompt: str, history: Optional[list[dict]] = None) -> Decision:
             LIMITER.record_failure()
             log_error(e, bucket.split("_")[0])
             last_err = f"{type(e).__name__}: {str(e)[:80]}"
+            if _is_permanent_error(e):
+                _DISABLED_BRAINS.add(bucket)
 
-    # Offline last-resort
+    # Cloud brains all failed (auth, rate, 5xx). Fall back to local.
     try:
         return Decision.from_text(_call_ollama(prompt, history))
     except Exception as e:
