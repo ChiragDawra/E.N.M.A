@@ -1,6 +1,9 @@
 """Speech-to-text via faster-whisper (local, Apple-Silicon friendly)."""
 from __future__ import annotations
 
+import warnings as _w
+_w.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 from pathlib import Path
 from typing import Optional, Union
 

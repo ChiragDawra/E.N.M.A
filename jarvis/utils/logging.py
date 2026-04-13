@@ -78,9 +78,13 @@ def log_security_event(kind: str, detail: str) -> None:
     _emit("auth", {"type": "security", "kind": kind, "detail": detail[:200]})
 
 
-def log_error(err: BaseException, where: str = "") -> None:
+def log_error(err: BaseException, where: str = "", include_traceback: bool = False) -> None:
     configure()
     if _HAS_LOGURU:
-        logger.opt(exception=err).error("{} | {}", where, err)
+        if include_traceback:
+            logger.opt(exception=err).error("{} | {}", where, err)
+        else:
+            logger.bind().error("{} | {}: {}", where, type(err).__name__, err)
     else:
-        logger.error("%s | %s", where, err, exc_info=err)
+        logger.error("%s | %s: %s", where, type(err).__name__, err,
+                     exc_info=err if include_traceback else None)

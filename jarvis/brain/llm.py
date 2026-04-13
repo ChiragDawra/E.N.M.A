@@ -130,6 +130,20 @@ def _call_ollama(prompt: str, history: list[dict]) -> str:
     return r.json()["message"]["content"]  # type: ignore[no-any-return]
 
 
+def _preferred_order() -> list[tuple[str, callable]]:
+    """Brain preference.  Claude first only if a key is present AND the
+    circuit breaker hasn't tripped on it recently; otherwise Gemini leads."""
+    from jarvis.utils.secrets import get_secret
+    has_claude = bool(get_secret("anthropic_api_key", prompt=False))
+    has_gemini = bool(get_secret("gemini_api_key", prompt=False))
+    order: list[tuple[str, callable]] = []
+    if has_claude:
+        order.append(("claude_api", _call_claude))
+    if has_gemini:
+        order.append(("gemini_api", _call_gemini))
+    return order
+
+
 def decide(prompt: str, history: Optional[list[dict]] = None) -> Decision:
     history = history or []
     if CONFIG.offline_mode or LIMITER.circuit_open():
@@ -139,32 +153,26 @@ def decide(prompt: str, history: Optional[list[dict]] = None) -> Decision:
             log_error(e, "ollama")
             return Decision(None, {}, "I'm offline and unable to reach any brain.")
 
-    # Primary: Claude
-    if LIMITER.allow("claude_api"):
+    last_err: str | None = None
+    for bucket, fn in _preferred_order():
+        if not LIMITER.allow(bucket):
+            continue
         try:
-            out = _call_claude(prompt, history)
+            out = fn(prompt, history)
             LIMITER.record_success()
             return Decision.from_text(out)
         except Exception as e:
             LIMITER.record_failure()
-            log_error(e, "claude")
-
-    # Fallback: Gemini
-    if LIMITER.allow("gemini_api"):
-        try:
-            out = _call_gemini(prompt, history)
-            LIMITER.record_success()
-            return Decision.from_text(out)
-        except Exception as e:
-            LIMITER.record_failure()
-            log_error(e, "gemini")
+            log_error(e, bucket.split("_")[0])
+            last_err = f"{type(e).__name__}: {str(e)[:80]}"
 
     # Offline last-resort
     try:
         return Decision.from_text(_call_ollama(prompt, history))
     except Exception as e:
         log_error(e, "ollama")
-        return Decision(None, {}, "All brains unavailable. Please try again later.")
+        msg = last_err or "no brains reachable"
+        return Decision(None, {}, f"All brains unavailable ({msg}).")
 
 
 _ = Any  # keep mypy happy when optional deps absent
