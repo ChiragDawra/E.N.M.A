@@ -105,9 +105,12 @@ def _call_gemini(prompt: str, history: list[dict]) -> str:
     if not api_key:
         raise RuntimeError("no gemini api key")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-pro", system_instruction=SYSTEM_PROMPT)
+    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=SYSTEM_PROMPT)
+    # Gemini roles are "user" / "model"; our memory uses "user" / "assistant".
+    remap = {"user": "user", "assistant": "model", "model": "model"}
     chat = model.start_chat(history=[
-        {"role": m["role"], "parts": [m["content"]]} for m in history
+        {"role": remap.get(m["role"], "user"), "parts": [m["content"]]}
+        for m in history
     ])
     r = chat.send_message(prompt)
     return r.text  # type: ignore[no-any-return]
