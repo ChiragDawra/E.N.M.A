@@ -28,7 +28,10 @@ except ImportError:  # pragma: no cover
     _HAS_ANTHROPIC = False
 
 try:
-    import google.generativeai as genai  # type: ignore
+    import warnings as _w
+    with _w.catch_warnings():
+        _w.filterwarnings("ignore", category=FutureWarning)
+        import google.generativeai as genai  # type: ignore
     _HAS_GEMINI = True
 except ImportError:  # pragma: no cover
     genai = None  # type: ignore[assignment]

@@ -13,7 +13,7 @@ a dedicated module.
 | 5 | No rate limiting | `jarvis.security.rate_limiter` |
 | 6 | No input sanitization | `jarvis.security.sanitizer` |
 | 7 | Unencrypted memory | `jarvis.memory.store` (Fernet + PII redact) |
-| 8 | No TLS | (optional — run with `uvicorn --ssl-*`) |
+| 8 | No TLS | `jarvis.server.app` + `jarvis.server.tls` (auto self-signed) |
 | 9 | Wake-word false positives | `jarvis.audio.wake_word` (+ voice-auth gate) |
 | 10 | No audit logging | `jarvis.utils.logging` (loguru, rotating) |
 | 11 | Dependency CVEs | `requirements.txt` pinned + `pip-audit` |
@@ -22,21 +22,23 @@ a dedicated module.
 ## Quick start
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# One-shot setup (venv + deps + Keychain prompts)
+./scripts/setup.sh
 
-# Store API keys in macOS Keychain
-python -m jarvis setup
-
-# Create your voice profile (records ~8 s)
-python -m jarvis enroll
-
-# Text-only sanity check (no audio stack needed)
+# Smoke test — no mic, no API keys, pure Python
 python -m jarvis text "what time is it"
+
+# Enroll your voice (records ~8 s)
+python -m jarvis enroll
 
 # Full voice loop
 python -m jarvis run
+
+# Localhost TLS web UI (auto-generates a self-signed cert in data/)
+python -m jarvis serve      # https://127.0.0.1:8443/health
+
+# Connect MCP servers (optional — see data/mcp_servers.json)
+python -m jarvis mcp
 ```
 
 ## Security model
@@ -61,9 +63,11 @@ jarvis/
   brain/        Claude / Gemini / Ollama routing
   memory/       encrypted SQLite + PII redaction
   security/     rate limiter, sanitizer
-  tools/        sandbox + audited macOS helpers
+  server/       FastAPI + self-signed TLS
+  tools/        sandbox + audited macOS helpers + MCP client
   utils/        Keychain secrets, loguru logging
-tests/          pytest suite
+scripts/        setup.sh
+tests/          pytest suite (30 tests, bandit-clean)
 ```
 
 ## Running security scans

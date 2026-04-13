@@ -47,6 +47,19 @@ def cmd_text(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    from jarvis.server.app import run
+    run(host=args.host, port=args.port)
+    return 0
+
+
+def cmd_mcp(_args: argparse.Namespace) -> int:
+    from jarvis.tools import mcp as _mcp
+    n = _mcp.register_into_sandbox()
+    print(f"Registered {n} MCP tool(s).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="jarvis")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -62,6 +75,13 @@ def main(argv: list[str] | None = None) -> int:
     t = sub.add_parser("text", help="send a single text prompt (no audio)")
     t.add_argument("prompt")
     t.set_defaults(func=cmd_text)
+
+    s = sub.add_parser("serve", help="start the localhost TLS web UI")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", default=8443, type=int)
+    s.set_defaults(func=cmd_serve)
+
+    sub.add_parser("mcp", help="connect MCP servers from data/mcp_servers.json").set_defaults(func=cmd_mcp)
 
     args = p.parse_args(argv)
     return args.func(args)

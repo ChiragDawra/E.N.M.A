@@ -18,6 +18,10 @@ anthropic==0.40.0
 google-generativeai==0.8.0
 requests==2.32.3
 
+# Web UI / TLS
+fastapi==0.115.0
+uvicorn==0.30.6
+
 # Security tooling (dev)
 pip-audit==2.7.3
 bandit==1.7.9

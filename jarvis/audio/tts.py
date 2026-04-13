@@ -11,10 +11,11 @@ import subprocess
 from typing import Optional
 
 try:
-    import chatterbox_tts  # type: ignore
+    # Real PyPI package is 'chatterbox-tts'; its import name is 'chatterbox'.
+    from chatterbox.tts import ChatterboxTTS  # type: ignore
     _HAS_CHATTERBOX = True
 except ImportError:  # pragma: no cover
-    chatterbox_tts = None  # type: ignore[assignment]
+    ChatterboxTTS = None  # type: ignore[assignment]
     _HAS_CHATTERBOX = False
 
 
@@ -45,10 +46,21 @@ def speak(text: str, use_fast: bool = False) -> None:
     try:
         global _engine
         if _engine is None:
-            _engine = chatterbox_tts.TTS()  # type: ignore[attr-defined]
-        _engine.speak(text)  # type: ignore[union-attr]
+            _engine = ChatterboxTTS.from_pretrained(device="cpu")  # type: ignore[union-attr]
+        wav = _engine.generate(text)  # type: ignore[union-attr]
+        _play_wav(wav, _engine.sr)  # type: ignore[union-attr]
     except Exception:
         _mac_say(text)
+
+
+def _play_wav(wav, sr: int) -> None:
+    try:
+        import sounddevice as sd
+        import numpy as np
+        sd.play(np.asarray(wav), sr)
+        sd.wait()
+    except Exception:
+        pass
 
 
 _ = shutil  # reserved for future: lookup of 'say' path

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python3 -c \"import cryptography\")",
+      "Bash(python3 -c \"import pytest\")",
+      "Bash(python3 -m pip install --quiet pytest cryptography)",
+      "Bash(python3 -m pytest -x -q)",
+      "Bash(python3 -m pytest -q)",
+      "Bash(python3 -m pip install --quiet bandit)",
+      "Bash(python3 -m bandit -r jarvis/ -q)",
+      "Bash(python3 -c \"import jarvis.core.orchestrator, jarvis.brain.llm, jarvis.audio.wake_word, jarvis.audio.stt, jarvis.audio.tts, jarvis.audio.recorder, jarvis.memory.store, jarvis.tools.sandbox\")",
+      "Bash(chmod +x:*)",
+      "Bash(python3 -c \"import jarvis.core.orchestrator, jarvis.brain.llm, jarvis.audio.wake_word, jarvis.audio.stt, jarvis.audio.tts, jarvis.server.app, jarvis.server.tls, jarvis.tools.mcp\")",
+      "Bash(python3 -m pip install --quiet fastapi uvicorn)",
+      "Bash(pip3 install:*)",
+      "Bash(python3 -m bandit -r jarvis/ -q -ll)"
+    ]
+  }
+}
