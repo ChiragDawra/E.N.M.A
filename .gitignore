@@ -18,9 +18,10 @@ models/*.bin
 data/*.pem
 data/mcp_servers.json
 
-# IDE
+# IDE / local tooling
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # Test / coverage
