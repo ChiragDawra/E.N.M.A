@@ -12,7 +12,14 @@ def cmd_run(_args: argparse.Namespace) -> int:
     return 0
 
 
+ENROLL_SCRIPT = (
+    "Hey Jarvis, from this moment forward, only my voice should unlock "
+    "your commands. I'll speak naturally, clearly, and trust you to listen."
+)
+
+
 def cmd_enroll(args: argparse.Namespace) -> int:
+    import time as _t
     from jarvis.audio import recorder
     from jarvis.auth import voice
 
@@ -22,13 +29,29 @@ def cmd_enroll(args: argparse.Namespace) -> int:
             print(f"no such file: {path}", file=sys.stderr)
             return 2
         voice.enroll(path)
-    else:
-        print("Recording 8 seconds — speak naturally...")
-        samples = recorder.record(seconds=8.0)
-        wav = recorder.save_wav(samples)
-        voice.enroll(str(wav))
-        wav.unlink(missing_ok=True)
-    print("Voice profile saved.")
+        print("Voice profile saved.")
+        return 0
+
+    duration = float(args.seconds)
+    print("\n" + "━" * 60)
+    print(" Voice enrollment — read this aloud at a natural pace:")
+    print("━" * 60)
+    print(f"\n  \"{ENROLL_SCRIPT}\"\n")
+    print(f" Recording will run for {duration:.0f} seconds.")
+    print(" Tip: don't whisper, don't shout, don't rush — speak how you'll")
+    print(" normally talk to JARVIS.\n")
+    input(" Press Enter when you're ready…")
+
+    for n in (3, 2, 1):
+        print(f"  {n}…", end=" ", flush=True)
+        _t.sleep(1)
+    print("🎙  recording")
+
+    samples = recorder.record(seconds=duration)
+    wav = recorder.save_wav(samples)
+    voice.enroll(str(wav))
+    wav.unlink(missing_ok=True)
+    print("\n✓ Voice profile saved.")
     return 0
 
 
@@ -133,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
 
     e = sub.add_parser("enroll", help="create your voice profile")
     e.add_argument("--file", help="enroll from an existing WAV instead of recording")
+    e.add_argument("--seconds", type=float, default=8.0,
+                   help="recording duration in seconds (default: 8)")
     e.set_defaults(func=cmd_enroll)
 
     sp = sub.add_parser("setup", help="store API keys in Keychain")
