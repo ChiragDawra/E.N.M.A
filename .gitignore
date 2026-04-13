@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+.DS_Store
+
+# JARVIS runtime state — must never be committed
+data/*.npy
+data/*.db
+data/*.db-*
+logs/*.log
+logs/*.log.gz
+models/*.onnx
+models/*.bin
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/

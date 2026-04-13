@@ -1,0 +1,23 @@
+# Core — pinned per vulnerability-cure doc
+numpy==1.26.4
+cryptography==43.0.0
+keyring==25.0.0
+loguru==0.7.2
+pydantic==2.9.0
+
+# Audio
+sounddevice==0.4.7
+librosa==0.10.2
+openwakeword==0.6.0
+faster-whisper==1.0.3
+resemblyzer==0.1.4
+# chatterbox-tts==0.1.0   # optional — large model, uncomment when needed
+
+# AI brains
+anthropic==0.40.0
+google-generativeai==0.8.0
+requests==2.32.3
+
+# Security tooling (dev)
+pip-audit==2.7.3
+bandit==1.7.9
